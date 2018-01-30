@@ -13,21 +13,10 @@ cryptographic protocols developed by [Galois, Inc][Galois].
 Since we'll need to operate on vectors, we import [`Data.Vect`], which provides
 the `Vect` data type.
 
+> import Data.Bit
 > import Data.Vect
 
 [`Data.Vect`]: https://github.com/idris-lang/Idris-dev/blob/v0.12.2/libs/base/Data/Vect.idr
-
-**TODO**: Describe `Bit`s and `Word`s.
-
-> public export
-> data Bit : Type where
->   O : Bit
->   I : Bit
-
-> ||| A binary word is a vector of bits.
-> public export
-> Word : Nat -> Type
-> Word n = Vect n Bit
 
 `Data.Vect` provides [`splitAt`][splitAt]:
 
@@ -90,7 +79,7 @@ efficient.
 > splitConcatLemma {m = Z} [] = Refl
 > splitConcatLemma {m = S k} {n} xs with (takeView n xs)
 >   splitConcatLemma {m = S k} {n} (ys ++ zs) | (Take ys zs) =
->     let inductiveHypothesis = splitConcatLemma zs {m=k} {n=n} in
+>     let inductiveHypothesis = splitConcatLemma zs {m=k} {n} in
 >       rewrite takeLemma ys zs in
 >       rewrite dropLemma ys zs in
 >       rewrite inductiveHypothesis in
@@ -99,111 +88,11 @@ efficient.
 > export
 > splitView : (n, m : Nat) -> (xs : Vect (m * n) a) -> SplitView m xs
 > splitView n m xs =
->   let prf  = sym (splitConcatLemma xs {m = m} {n = n})
->       view = Split (split n m xs) {n = n} in
+>   let prf  = sym (splitConcatLemma xs {m} {n})
+>       view = Split (split n m xs) {n} in
 >   rewrite prf in view
 
 > export
 > swab : Word 32 -> Word 32
 > swab xs with (splitView 8 4 xs)
 >   swab _ | Split [a, b, c, d] = concat [b, a, c, d]
-
-> public export
-> data U : Type where
->   BIT : U
->   CHAR : U
->   NAT : U
->   VECT : Nat -> U -> U
->
-> public export
-> el : U -> Type
-> el BIT        = Bit
-> el CHAR       = Char
-> el NAT        = Nat
-> el (VECT n u) = Vect n (el u)
-
-> parens : String -> String
-> parens str = "(" ++ str ++ ")"
-
-> export
-> show : {u : U} -> el u -> String
-> show {u = BIT} O       = "O"
-> show {u = BIT} I       = "I"
-> show {u = CHAR} c      = singleton c
-> show {u = NAT} Z       = "Zero"
-> show {u = NAT} (S k)   = "Succ " ++ parens (show {u = NAT} k)
-> show {u = VECT Z a} [] = "Nil"
-> show {u = VECT (S k) a} (x :: xs)
->   = parens (show {u = a} x) ++ " :: " ++ parens (show {u = VECT k a} xs)
-
-> export
-> read : (u : U) -> List Bit -> Maybe (el u, List Bit)
-> read u xs = ?read_rhs
-
-> mutual
->   public export
->   data Format : Type where
->     Bad : Format
->     End : Format
->     Base : U -> Format
->     Plus : Format -> Format -> Format
->     Skip : Format -> Format -> Format
->     Read : (f : Format) -> (Fmt f -> Format) -> Format
-
->   public export
->   Fmt : Format -> Type
->   Fmt Bad = Void
->   Fmt End = Unit
->   Fmt (Base u) = el u
->   Fmt (Plus f1 f2) = Either (Fmt f1) (Fmt f2)
->   Fmt (Read f1 f2) = (x : Fmt f1 ** Fmt (f2 x))
->   Fmt (Skip _ f) = Fmt f
-
-=== Format combinators
-
-> export
-> char : Char -> Format
-> char c = Read (Base CHAR) (\x => if (c == x) then End else Bad)
-
-> export
-> satisfy : (f : Format) -> (Fmt f -> Bool) -> Format
-> satisfy f pred = Read f (\x => if (pred x) then End else Bad)
-
-> (>>) : Format -> Format -> Format
-> f1 >> f2 = Skip f1 f2
-
-> (>>=) : (f : Format) -> (Fmt f -> Format) -> Format
-> x >>= f = Read x f
-
-> export
-> pbm : Format
-> pbm = char 'P' >>
->       char '4' >>
->       char ' ' >>
->       Base NAT >>= \n =>
->       char ' ' >>
->       Base NAT >>= \m =>
->       char '\n' >>
->       Base (VECT n (VECT m BIT)) >>= \bs =>
->       End
-
-=== Generic parsers
-
-> export
-> parse : (f : Format) -> List Bit -> Maybe (Fmt f, List Bit)
-> parse Bad bs       = Nothing
-> parse End bs       = Just ((), bs)
-> parse (Base u) bs  = read u bs
-> parse (Plus f1 f2) bs with (parse f1 bs)
->   | Just (x, cs)   = Just (Left x, cs)
->   | Nothing with (parse f2 bs)
->     | Just (y, ds) = Just (Right y, ds)
->     | Nothing      = Nothing
-> parse (Skip f1 f2) bs with (parse f1 bs)
->   | Nothing        = Nothing
->   | Just (_, cs)   = parse f2 cs
-> parse (Read f1 f2) bs with (parse f1 bs)
->   | Nothing        = Nothing
->   | Just (x, cs) with (parse (f2 x) cs)
->     | Nothing      = Nothing
->     | Just (y, ds) = Just ((x ** y), ds)
