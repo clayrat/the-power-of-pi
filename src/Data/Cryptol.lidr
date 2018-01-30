@@ -13,8 +13,9 @@ cryptographic protocols developed by [Galois, Inc][Galois].
 Since we'll need to operate on vectors, we import [`Data.Vect`], which provides
 the `Vect` data type.
 
-> import Data.Bit
 > import Data.Vect
+
+> import Data.Bit
 
 [`Data.Vect`]: https://github.com/idris-lang/Idris-dev/blob/v0.12.2/libs/base/Data/Vect.idr
 
