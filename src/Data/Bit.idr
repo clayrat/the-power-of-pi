@@ -22,7 +22,7 @@ Word n = Vect n Bit
 intBitsRev : Int -> List Bit
 intBitsRev 0 = []
 intBitsRev i with (divides i 2)
-  intBits (2*j+b) | DivBy _ = (if b==0 then O else I) :: intBitsRev j
+  intBitsRev (2*j+b) | DivBy _ = (if b==0 then O else I) :: intBitsRev j
 
 pad16 : List Bit -> List Bit
 pad16 xs = let l = length xs in 
